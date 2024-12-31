@@ -1,71 +1,77 @@
 import os
-from flask import Flask, request, render_template, jsonify, redirect, url_for
+from flask import Flask, request, jsonify, render_template
+from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing import image
 import numpy as np
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Path to save uploaded files
+# Set upload folder and allowed extensions
 UPLOAD_FOLDER = 'static/uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Load the trained model
-MODEL_PATH = r"C:\Users\Bhuvan M\OneDrive\Desktop\O&R waste\final_model_resnet50(2).keras"
+MODEL_PATH = r'C:\Users\Bhuvan M\OneDrive\Desktop\O&R waste\final_model_resnet50(2).keras'
 model = load_model(MODEL_PATH)
 
-# Class labels
-CLASS_NAMES = ['Organic', 'Recycle', 'Unknown']
+# Ensure upload folder exists
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
-# Helper function to preprocess the image
-def preprocess_image(image_path, target_size=(224, 224)):
-    img = load_img(image_path, target_size=target_size)
-    img_array = img_to_array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    return img_array
+# Helper function to check allowed file extensions
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Route for the main page
-@app.route("/", methods=["GET"])
+# Route for the homepage
+@app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template('index.html')
 
-# Route for prediction
-@app.route("/predict", methods=["POST"])
+# Route for predictions
+@app.route('/predict', methods=['POST'])
 def predict():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part in the request"})
+    try:
+        # Check if file is in request
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'})
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No file selected"})
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'})
 
-    if file:
-        # Save the uploaded file
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(file_path)
+        # Check if the file is allowed
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
 
-        # Preprocess the image
-        img_array = preprocess_image(file_path)
+            # Preprocess the image
+            img = image.load_img(filepath, target_size=(224, 224))  # Resize image to 224x224
+            img_array = image.img_to_array(img)
+            img_array = np.expand_dims(img_array, axis=0) / 255.0
 
-        # Make a prediction
-        predictions = model.predict(img_array)
-        predicted_class = CLASS_NAMES[np.argmax(predictions)]
-        confidence = round(100 * np.max(predictions), 2)
+            # Make prediction
+            prediction = model.predict(img_array)[0]
+            confidence = max(prediction) * 100
+            classes = ['Organic', 'Recyclable', 'Unknown']
+            predicted_class = classes[np.argmax(prediction)]
 
-        return jsonify({
-            "predicted_class": predicted_class,
-            "confidence": f"{confidence}%",
-            "file_path": file_path
-        })
+            # If confidence is less than 95%, classify as Unknown
+            if confidence < 99.6:
+                predicted_class = "Unknown"
 
-# Serve uploaded files
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return redirect(url_for('static', filename=f'uploads/{filename}'))
+            return jsonify({
+                'predicted_class': predicted_class,
+                'confidence': f"{confidence:.2f}%",
+                'file_path': f'static/uploads/{filename}'
+            })
+        else:
+            return jsonify({'error': 'Invalid file format'})
+    except Exception as e:
+        return jsonify({'error': f'An error occurred: {str(e)}'})
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)

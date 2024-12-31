@@ -4,139 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Waste Classification</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* General styles */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Montserrat', sans-serif;
+            color: #000000;
+            background: url('static/images/bg.jpg') no-repeat center center fixed;
+            background-size: cover;
             margin: 0;
             padding: 0;
-            background-color: #1a1a1a; /* Black background */
-            color: #ffffff; /* White text */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         h1 {
-            margin-top: 20px;
-            color: #ff4d4d; /* Moderate red */
+            font-weight: 700;
+            font-size: 3em;
+            font-style: italic;
+            text-align: center;
+            color: white;
+            margin: 0;
+            padding-bottom: 10px;
         }
 
         p {
-            margin-top: 10px;
-            font-size: 1.2em;
-            color: #e6e6e6; /* Light gray */
-        }
-
-        /* Centered container */
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            border-radius: 10px;
-            background-color: #333333; /* Dark gray container */
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+            font-weight: 400;
+            font-size: 2.5em;
             text-align: center;
+            color: white;
+            margin: 0;
+            padding-bottom: 30px;
         }
 
-        /* File upload styles */
-        .upload-box {
-            border: 2px dashed #ff4d4d; /* Red dashed border */
-            padding: 30px;
-            margin-top: 20px;
+        .upload-box, button {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 2px solid #ffffff;
+            padding: 15px;
+            margin-top: 30px;
             border-radius: 10px;
-            cursor: pointer;
-            color: #ff4d4d;
             font-size: 1.2em;
+            color: #000000;
+            cursor: pointer;
+            width: 50%;
+            text-align: center;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        .upload-box:hover {
-            background-color: #ff4d4d;
-            color: #1a1a1a; /* Black text when hovering */
+        .upload-box:hover, button:hover {
+            background-color: #ffffff;
+            color: #000000;
         }
 
         .upload-box.dragging {
-            background-color: #e64545; /* Darker red when dragging */
-            color: #1a1a1a; /* Black text */
+            background-color: #cccccc;
+            color: #000000;
         }
 
-        input[type="file"] {
-            display: none;
-        }
-
-        button {
-            background-color: #ff4d4d;
-            color: #ffffff;
-            font-size: 1.1em;
-            padding: 10px 20px;
-            margin-top: 20px; /* Space above classify button */
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #e64545; /* Darker red */
-        }
-
-        .output {
-            margin-top: 30px;
-        }
-
-        img {
-            max-width: 100%;
-            max-height: 300px;
+        #result {
+            font-size: 1.5em;
             margin-top: 20px;
-            border: 2px solid #ff4d4d;
+            text-align: center;
+            color: white;
+        }
+
+        #predicted-image {
+            margin-top: 20px;
+            max-width: 80%;
+            max-height: 400px;
             border-radius: 10px;
-        }
-
-        .result {
-            font-size: 1.2em;
-            margin-top: 20px;
-            color: #ff4d4d; /* Highlight result in red */
         }
 
         footer {
             margin-top: 50px;
-            font-size: 0.9em;
-            color: #777777; /* Light gray footer text */
+            font-size: 1em;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Waste Classification</h1>
-        <p>Upload an image to classify it as Organic, Recyclable, or Unknown.</p>
+    <h1>Intelligent Sorting of Organic and Recyclable Waste</h1>
+    <p>Upload an image to classify it as Organic or Recyclable</p>
 
-        <form id="upload-form" enctype="multipart/form-data">
-            <!-- Drag-and-Drop Container -->
-            <label for="file-upload" class="upload-box" id="upload-box">
-                Drag & Drop or Click to Upload Image
-                <input type="file" id="file-upload" name="file" accept="image/*">
-            </label>
+    <form id="upload-form" enctype="multipart/form-data">
+        <label for="file-upload" class="upload-box" id="upload-box">
+            Drag & Drop or Click to Upload Image
+            <input type="file" id="file-upload" name="file" accept="image/*" style="display:none;">
+        </label>
 
-            <!-- Classify Button -->
-            <button type="submit">Classify</button>
-        </form>
+        <button type="submit">Classify</button>
+    </form>
 
-        <div class="output">
-            <div id="result" class="result"></div>
-            <img id="uploaded-image" src="" alt="">
-        </div>
-    </div>
-
-    <footer>
-        Powered by Flask and TensorFlow | Waste Classification AI
-    </footer>
+    <div id="result"></div>
+    <img id="predicted-image" src="" alt="" style="display:none;">
 
     <script>
         const form = document.getElementById("upload-form");
         const fileInput = document.getElementById("file-upload");
         const resultDiv = document.getElementById("result");
-        const uploadedImage = document.getElementById("uploaded-image");
+        const predictedImage = document.getElementById("predicted-image");
         const uploadBox = document.getElementById("upload-box");
 
-        // Drag-and-Drop Functionality
+        // Function to trigger file input only once
+        uploadBox.addEventListener("click", () => {
+            // Check if the file input is not already opened
+            if (fileInput.files.length === 0) {
+                fileInput.click();
+            }
+        });
+
+        // Handle drag-and-drop events
         uploadBox.addEventListener("dragover", (e) => {
             e.preventDefault();
             uploadBox.classList.add("dragging");
@@ -152,19 +131,11 @@
             const file = e.dataTransfer.files[0];
             if (file) {
                 fileInput.files = e.dataTransfer.files;
-                autoSubmitForm();
             }
         });
 
-        uploadBox.addEventListener("click", () => {
-            fileInput.click();
-        });
-
-        fileInput.addEventListener("change", () => {
-            autoSubmitForm();
-        });
-
-        function autoSubmitForm() {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
             if (!fileInput.files[0]) {
                 resultDiv.innerHTML = "Please upload an image.";
                 return;
@@ -173,31 +144,24 @@
             const formData = new FormData();
             formData.append("file", fileInput.files[0]);
 
-            resultDiv.innerHTML = "Processing...";
-            fetch("/predict", {
-                method: "POST",
-                body: formData
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.error) {
-                        resultDiv.innerHTML = `Error: ${data.error}`;
-                    } else {
-                        resultDiv.innerHTML = `
-                            <strong>Predicted Class:</strong> ${data.predicted_class}<br>
-                            <strong>Confidence:</strong> ${data.confidence}
-                        `;
-                        uploadedImage.src = "/" + data.file_path;
-                    }
-                })
-                .catch((error) => {
-                    resultDiv.innerHTML = "An error occurred. Please try again.";
+            try {
+                resultDiv.innerHTML = "Processing...";
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
                 });
-        }
 
-        form.addEventListener("submit", (e) => {
-            e.preventDefault();
-            autoSubmitForm();
+                const data = await response.json();
+                if (data.error) {
+                    resultDiv.innerHTML = `Error: ${data.error}`;
+                } else {
+                    resultDiv.innerHTML = `Predicted Class: ${data.predicted_class} <br> Confidence: ${data.confidence}`;
+                    predictedImage.src = "/" + data.file_path;
+                    predictedImage.style.display = "block";
+                }
+            } catch (error) {
+                resultDiv.innerHTML = "An error occurred. Please try again.";
+            }
         });
     </script>
 </body>
