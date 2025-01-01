@@ -14,7 +14,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Load the trained model
-MODEL_PATH = r'C:\Users\Bhuvan M\OneDrive\Desktop\O&R waste\final_model_resnet50(2).keras'
+MODEL_PATH = r'C:\Users\Bhuvan M\OneDrive\Desktop\O&R waste\final_model_resnet50(3).keras'
 model = load_model(MODEL_PATH)
 
 # Ensure upload folder exists
